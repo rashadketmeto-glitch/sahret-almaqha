@@ -107,7 +107,7 @@ function $(id){return document.getElementById(id)}
 function toast(t){$("toast").textContent=t;$("toast").style.display="block";setTimeout(()=>{$("toast").style.display="none"},2200)}
 function hostGame(){
  me=$("name").value.trim(); if(!me)return toast("اكتب اسمك أولًا");
- roomId=($("room").value.trim()||("PAL"+Math.random().toString(36).slice(2,7))).toUpperCase();
+ roomId=($("room").value.trim()||("PALESTINE26")).toUpperCase();
  isHost=true; players={}; players[me]={name:me,score:0,ready:false};
  peer=new Peer("pal-cafe-"+roomId,{debug:0});
  peer.on("open",()=>{showLobby();$("judgeBox").classList.remove("hidden");toast("الغرفة جاهزة");});
