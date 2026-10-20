@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سهرة المقهى — مقهى فلسطين الرقمية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial;background:linear-gradient(135deg,#111827,#1f2937 55%,#3f2b1f);color:#fff;min-height:100vh}
+.wrap{max-width:1000px;margin:auto;padding:20px}.brand{text-align:center;padding:20px 0}.brand h1{margin:0;font-size:clamp(30px,6vw,56px)}.brand p{margin:8px 0;color:#d1d5db}
+.card{background:#ffffff12;border:1px solid #ffffff22;backdrop-filter:blur(10px);border-radius:22px;padding:20px;margin:14px 0;box-shadow:0 12px 35px #0005}
+input,button,select,textarea{font:inherit;border-radius:12px;border:1px solid #ffffff22;padding:12px}
+input,select,textarea{background:#111827;color:#fff;width:100%}button{background:#f59e0b;color:#111827;font-weight:800;cursor:pointer;border:0}button.secondary{background:#374151;color:#fff}button.danger{background:#ef4444;color:white}button:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+.hidden{display:none}.players{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}.player{padding:12px;border-radius:14px;background:#0003;border:1px solid #ffffff18}.ready{color:#86efac}.notready{color:#fca5a5}
+.question{font-size:clamp(22px,4vw,34px);line-height:1.5;text-align:center;margin:20px 0}.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px}.answers button{min-height:64px;font-size:18px}.answers button.selected{outline:4px solid #fff8}.timer{text-align:center;font-size:42px;font-weight:900;margin:10px}.score{font-size:22px}.rank{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #ffffff15}.rank:first-child{font-size:22px;font-weight:900}
+.chat{height:260px;overflow:auto;background:#0003;border-radius:14px;padding:10px}.msg{padding:7px 9px;margin:5px 0;background:#ffffff0b;border-radius:10px}.small{color:#cbd5e1;font-size:13px}.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#111827;color:#fff;padding:13px 18px;border-radius:14px;display:none;z-index:5}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:10}.piece{position:absolute;width:10px;height:18px;animation:fall 2.8s linear forwards}@keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:0}}
+@media(max-width:650px){.answers{grid-template-columns:1fr}.wrap{padding:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="small">☕ مقهى فلسطين الرقمية</div>
+    <h1>سهرة المقهى 🎉</h1>
+    <p>لعبة جماعية عربية — 5 إلى 20 لاعبًا</p>
+  </div>
+
+  <section id="home" class="card">
+    <h2>ابدأ السهرة</h2>
+    <div class="grid">
+      <div><label>اسمك</label><input id="name" maxlength="24" placeholder="اكتب اسمك"></div>
+      <div><label>رمز الغرفة</label><input id="room" maxlength="12" value="PALESTINE26" placeholder="مثال: PAL123"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button onclick="hostGame()">إنشاء غرفة وحكم</button>
+      <button class="secondary" onclick="joinGame()">دخول إلى غرفة</button>
+    </div>
+    <p class="small">هذه النسخة ملف واحد. للعب عبر الإنترنت، ارفع الملف كما هو إلى استضافة تدعم HTTPS. الاتصال الجماعي يعتمد على WebRTC مع خادم إشارة عام.</p>
+  </section>
+
+  <section id="lobby" class="card hidden">
+    <div class="row">
+      <div><h2>الغرفة: <span id="roomShow"></span></h2><p class="small">شارك رمز الغرفة مع اللاعبين.</p></div>
+      <div style="text-align:left"><button onclick="copyRoom()">نسخ الرمز</button></div>
+    </div>
+    <div class="score">اللاعبون: <span id="count">1</span>/20 — الجاهزون: <span id="readyCount">0</span></div>
+    <div id="players" class="players" style="margin-top:14px"></div>
+    <div class="row" style="margin-top:14px">
+      <button id="readyBtn" onclick="toggleReady()">أنا جاهز ✓</button>
+      <button id="startBtn" onclick="startGame()" disabled>ابدأ اللعبة</button>
+    </div>
+    <div id="judgeBox" class="card hidden">
+      <h3>لوحة الحكم 👑</h3>
+      <div class="grid">
+        <input id="customQ" placeholder="اكتب سؤالًا جديدًا">
+        <input id="a1" placeholder="الإجابة 1">
+        <input id="a2" placeholder="الإجابة 2">
+        <input id="a3" placeholder="الإجابة 3">
+        <input id="a4" placeholder="الإجابة 4">
+        <select id="correct"><option value="0">الصحيحة: 1</option><option value="1">الصحيحة: 2</option><option value="2">الصحيحة: 3</option><option value="3">الصحيحة: 4</option></select>
+      </div>
+      <button style="margin-top:10px" onclick="addQuestion()">إضافة سؤال</button>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="card">
+      <div class="row"><div>الجولة: <b id="roundNo">1</b></div><div>النقاط: <b id="myScore">0</b></div></div>
+      <div class="timer" id="timer">20</div>
+      <div class="question" id="question"></div>
+      <div class="answers" id="answers"></div>
+      <p id="status" class="small" style="text-align:center"></p>
+    </div>
+    <div class="card">
+      <h3>الدردشة 💬</h3>
+      <div id="chat" class="chat"></div>
+      <div class="row" style="margin-top:10px"><input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendChat()"><button onclick="sendChat()">إرسال</button></div>
+    </div>
+    <div class="card">
+      <h3>الترتيب 🏆</h3><div id="ranking"></div>
+    </div>
+  </section>
+
+  <section id="winner" class="card hidden" style="text-align:center">
+    <div style="font-size:64px">🏆</div>
+    <h1 id="winnerName"></h1>
+    <h2>بطل سهرة المقهى!</h2>
+    <div id="finalRanking"></div>
+    <button onclick="location.reload()">سهرة جديدة</button>
+  </section>
+</div>
+<div id="toast" class="toast"></div><div id="confetti" class="confetti"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const builtIn=[
+["ما هي عاصمة فلسطين؟",["القدس","يافا","حيفا","غزة"],0],
+["أي مدينة سورية تُعرف بمدينة الياسمين؟",["دمشق","حلب","حمص","اللاذقية"],0],
+["ما البحر الذي يحد فلسطين من الغرب؟",["البحر الأحمر","البحر المتوسط","بحر العرب","البحر الميت"],1],
+["ما اسم العملة المتداولة في فلسطين؟",["الدينار الأردني والشيكل","اليورو","الدولار الكندي","الجنيه المصري فقط"],0],
+["أي طبق فلسطيني شهير يُحضّر بالقمح واللحم؟",["المقلوبة","المسخن","الهريسة","المنسف"],1]
+];
+let me="",roomId="",isHost=false,peer=null,hostConn=null,conns=new Map(),players={},questions=[...builtIn],qIndex=0,timerInt=null,time=20,ready=false,answered=false,reconnectTimer=null,heartbeatTimer=null,lastPong=0,reconnectAttempts=0,clientPeerOpened=false;
+
+function $(id){return document.getElementById(id)}
+function toast(t){$("toast").textContent=t;$("toast").style.display="block";setTimeout(()=>{$("toast").style.display="none"},2200)}
+function hostGame(){
+ me=$("name").value.trim(); if(!me)return toast("اكتب اسمك أولًا");
+ roomId=($("room").value.trim()||"PALESTINE26").toUpperCase();
+ $("room").value=roomId; isHost=true; players={}; players[me]={name:me,score:0,ready:false};
+ peer=new Peer("pal-cafe-"+roomId,{debug:0});
+ peer.on("open",()=>{showLobby();$("judgeBox").classList.remove("hidden");toast("الغرفة جاهزة");});
+ peer.on("connection",c=>{
+   c.on("open",()=>{if(conns.size>=19&&!conns.has(c.peer)){c.close();return} conns.set(c.peer,c);});
+   c.on("data",d=>handleHost(c,d));
+   c.on("close",()=>dropHostConnection(c));
+   c.on("error",()=>dropHostConnection(c));
+ });
+ peer.on("error",e=>toast("تعذر إنشاء الغرفة: "+e.type));
+}
+function joinGame(){
+ me=$("name").value.trim(); roomId=($("room").value.trim()||"PALESTINE26").toUpperCase(); $("room").value=roomId;
+ if(!me||!roomId)return toast("اكتب الاسم ورمز الغرفة");
+ clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(heartbeatTimer);heartbeatTimer=null;
+ try{if(hostConn)hostConn.close()}catch(e){} hostConn=null;
+ try{if(peer&&!peer.destroyed)peer.destroy()}catch(e){} peer=null;
+ isHost=false;reconnectAttempts=0;lastPong=0;clientPeerOpened=false;
+ peer=new Peer(undefined,{debug:0});
+ peer.on("open",()=>{clientPeerOpened=true;connectToHost()});
+ peer.on("disconnected",()=>scheduleHostReconnect());
+ peer.on("error",e=>{toast("تعذر الاتصال؛ نحاول إعادة الاتصال");scheduleHostReconnect()});
+}
+function connectToHost(){
+ if(!peer||peer.destroyed||!roomId||isHost)return;
+ if(hostConn&&hostConn.open)return;
+ try{if(hostConn)hostConn.close()}catch(e){}
+ const c=peer.connect("pal-cafe-"+roomId,{reliable:true});hostConn=c;
+ let opened=false;
+ const openTimeout=setTimeout(()=>{
+   if(c===hostConn&&!opened){try{c.close()}catch(e){};scheduleHostReconnect()}
+ },12000);
+ c.on("open",()=>{
+   if(c!==hostConn)return;opened=true;clearTimeout(openTimeout);reconnectAttempts=0;lastPong=Date.now();
+   try{c.send({type:"join",name:me})}catch(e){scheduleHostReconnect()}
+   showLobby();startClientHeartbeat();
+ });
+ c.on("data",d=>{if(c!==hostConn)return;lastPong=Date.now();if(d&&d.type==="pong")return;handlePlayer(d)});
+ c.on("close",()=>{clearTimeout(openTimeout);if(c===hostConn){hostConn=null;toast("انقطع الاتصال بالحكم؛ نحاول استعادته");scheduleHostReconnect()}});
+ c.on("error",()=>{clearTimeout(openTimeout);if(c===hostConn){try{c.close()}catch(e){};scheduleHostReconnect()}});
+}
+function scheduleHostReconnect(){
+ if(isHost||reconnectTimer||!peer||peer.destroyed||!roomId)return;
+ const delay=Math.min(1500*Math.pow(2,reconnectAttempts),8000);reconnectAttempts++;
+ reconnectTimer=setTimeout(()=>{
+   reconnectTimer=null;
+   if(!peer||peer.destroyed||isHost)return;
+   if(peer.disconnected){
+     try{peer.reconnect()}catch(e){}
+     // Reconnecting the signalling socket does not restore a closed data channel.
+     // Try opening a fresh data channel after the signalling reconnect attempt.
+     reconnectTimer=setTimeout(()=>{
+       reconnectTimer=null;
+       if(peer&&!peer.destroyed&&!isHost&&(!hostConn||!hostConn.open))connectToHost();
+     },1800);
+     return;
+   }
+   if(!hostConn||!hostConn.open)connectToHost();
+ },delay);
+}
+function startClientHeartbeat(){
+ clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>{
+   if(isHost||!peer||peer.destroyed)return;
+   if(!hostConn||!hostConn.open){scheduleHostReconnect();return}
+   if(lastPong&&Date.now()-lastPong>15000){const old=hostConn;hostConn=null;try{old.close()}catch(e){};scheduleHostReconnect();return}
+   try{hostConn.send({type:"ping",sent:Date.now()})}catch(e){scheduleHostReconnect()}
+ },4000);
+}
+function dropHostConnection(c){
+ if(conns.get(c.peer)!==c)return;
+ conns.delete(c.peer);
+ if(c.playerName&&players[c.playerName]){players[c.playerName].connected=false;players[c.playerName].ready=false;}
+ broadcast();
+}
+function showLobby(){$("home").classList.add("hidden");$("lobby").classList.remove("hidden");$("roomShow").textContent=roomId;renderPlayers()}
+function syncReadyButton(){
+ ready=!!players[me]?.ready;
+ $("readyBtn").textContent=ready?"إلغاء الجاهزية":"أنا جاهز ✓";
+}
+function renderPlayers(){
+ $("count").textContent=Object.keys(players).length;$("readyCount").textContent=Object.values(players).filter(p=>p.ready).length;
+ $("players").innerHTML=Object.values(players).map(p=>`<div class="player"><b>${esc(p.name)}</b><br><span class="${p.ready?'ready':'notready'}">${p.ready?'جاهز ✓':'غير جاهز'}</span><br><span>${p.score} نقطة</span></div>`).join("");
+ syncReadyButton();
+ if(isHost)$("startBtn").disabled=Object.keys(players).length<2||!Object.values(players).every(p=>p.ready);
+}
+function toggleReady(){
+ if(!players[me])return toast("انتظر حتى يكتمل الاتصال بالغرفة");
+ const nextReady=!ready;
+ if(isHost){players[me].ready=nextReady;ready=nextReady;syncReadyButton();renderPlayers();broadcast()}
+ else if(hostConn&&hostConn.open){ready=nextReady;$("readyBtn").textContent=ready?"إلغاء الجاهزية":"أنا جاهز ✓";hostConn.send({type:"ready",value:ready})}
+ else toast("الاتصال بالحكم غير متصل؛ أعد الدخول إلى الغرفة");
+}
+function handleHost(c,d){
+ if(d.type==="ping"){try{if(c.open)c.send({type:"pong",sent:d.sent||Date.now()})}catch(e){};return}
+ if(d.type==="join"){
+   if(!players[d.name]&&Object.keys(players).length>=20)return;
+   if(!players[d.name])players[d.name]={name:d.name,score:0,ready:false};
+   players[d.name].connected=true; c.playerName=d.name;
+   c.send({type:"welcome",players,questions});
+   const inGame=!$("game").classList.contains("hidden");
+   c.send({type:"state",players,questions,phase:inGame?"game":"lobby",q:qIndex,round:qIndex+1,showQuestion:inGame});
+   broadcast();
+ }else if(d.type==="ready"){if(c.playerName&&players[c.playerName])players[c.playerName].ready=d.value;broadcast()}
+ else if(d.type==="answer"){scoreAnswer(d.name,d.index)}
+ else if(d.type==="chat"){broadcast({type:"chat",name:d.name,text:d.text})}
+}
+function handlePlayer(d){
+ if(d.type==="welcome"){
+   players=d.players||{};questions=d.questions||questions;roomId=$("room").value.toUpperCase();
+   showLobby();renderPlayers();
+ }
+ if(d.type==="state"){
+   players=d.players||players;questions=d.questions||questions;
+   renderPlayers();
+   if(d.phase==="game"){
+     $("lobby").classList.add("hidden");$("winner").classList.add("hidden");$("game").classList.remove("hidden");
+     // Only reset the timer and answers when the host actually advances to a new question.
+     if(d.showQuestion)showQuestion(d.q,d.round);
+     else {$("myScore").textContent=players[me]?.score??0;renderRanking();}
+   }else{
+     $("game").classList.add("hidden");$("winner").classList.add("hidden");$("lobby").classList.remove("hidden");
+   }
+ }
+ if(d.type==="chat")addChat(d.name,d.text);
+ if(d.type==="winner")finish(d.players);
+}
+function broadcast(msg){
+ const payload=msg||{type:"state",players,questions,phase:$("game").classList.contains("hidden")?"lobby":"game",q:qIndex,round:qIndex+1};
+ for(const c of conns.values())if(c.open)c.send(payload);
+ renderPlayers();
+}
+function startGame(){
+ if(!isHost)return;
+ if(Object.keys(players).length<2||!Object.values(players).every(p=>p.ready))return toast("يجب أن يكون لاعبان على الأقل جاهزين");
+ qIndex=0; $("lobby").classList.add("hidden");$("game").classList.remove("hidden");showQuestion(qIndex,qIndex+1);
+ broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1,showQuestion:true});
+}
+function showQuestion(i,round){
+ qIndex=i; answered=false; time=20;$("roundNo").textContent=round;$("timer").textContent=time;
+ const q=questions[i%questions.length];$("question").textContent=q[0];
+ $("answers").innerHTML=q[1].map((a,j)=>`<button onclick="answer(${j})">${esc(a)}</button>`).join("");
+ $("status").textContent="اختر إجابتك قبل انتهاء الوقت!";
+ clearInterval(timerInt);timerInt=setInterval(()=>{time--;$("timer").textContent=time;if(time<=0){clearInterval(timerInt);disableAnswers();$("status").textContent="انتهى الوقت!";if(isHost)nextQuestion()}},1000);
+}
+function answer(i){
+ if(answered)return;answered=true;disableAnswers();if(isHost)scoreAnswer(me,i);else hostConn?.send({type:"answer",name:me,index:i});
+}
+function disableAnswers(){document.querySelectorAll("#answers button").forEach(b=>b.disabled=true)}
+function scoreAnswer(name,i){
+ const q=questions[qIndex%questions.length]; if(!players[name])return;
+ // Stop the current question timer as soon as an answer is scored, avoiding double advances.
+ clearInterval(timerInt);
+ if(i===q[2]){players[name].score+=2; if(name===me)$("myScore").textContent=players[name].score;toast("إجابة صحيحة! +2 🎉")}
+ else if(name===me)toast("إجابة غير صحيحة");
+ broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1,showQuestion:false});
+ if(isHost)setTimeout(nextQuestion,1200);
+}
+function nextQuestion(){
+ clearInterval(timerInt);qIndex++;
+ if(qIndex>=Math.min(questions.length,10)){finish(players);broadcast({type:"winner",players});return}
+ showQuestion(qIndex,qIndex+1);broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1,showQuestion:true});
+}
+function addQuestion(){
+ if(!isHost)return;let q=$("customQ").value.trim(),a=[$("a1").value.trim(),$("a2").value.trim(),$("a3").value.trim(),$("a4").value.trim()];
+ if(!q||a.some(x=>!x))return toast("أكمل السؤال والإجابات الأربع");
+ questions.push([q,a,+$("correct").value]);["customQ","a1","a2","a3","a4"].forEach(id=>$(id).value="");broadcast();toast("تمت إضافة السؤال");
+}
+function sendChat(){let t=$("chatInput").value.trim();if(!t)return;if(isHost){addChat(me,t);broadcast({type:"chat",name:me,text:t})}else hostConn?.send({type:"chat",name:me,text:t});$("chatInput").value=""}
+function addChat(n,t){$("chat").innerHTML+=`<div class="msg"><b>${esc(n)}</b>: ${esc(t)}</div>`;$("chat").scrollTop=$("chat").scrollHeight}
+function renderRanking(){
+ $("ranking").innerHTML=Object.values(players).sort((a,b)=>b.score-a.score).map((p,i)=>`<div class="rank"><span>${i+1}. ${esc(p.name)}</span><span>${p.score}</span></div>`).join("");
+}
+setInterval(()=>{if(!$("game").classList.contains("hidden"))renderRanking()},500);
+function finish(ps){
+ players=ps;clearInterval(timerInt);$("game").classList.add("hidden");$("lobby").classList.add("hidden");$("winner").classList.remove("hidden");
+ let arr=Object.values(players).sort((a,b)=>b.score-a.score);$("winnerName").textContent=arr[0]?.name||"الفائز";$("finalRanking").innerHTML=arr.map((p,i)=>`<div class="rank"><span>${i===0?"🥇":i===1?"🥈":i===2?"🥉":"#"+(i+1)} ${esc(p.name)}</span><b>${p.score}</b></div>`).join("");confetti();
+}
+function copyRoom(){navigator.clipboard?.writeText(roomId);toast("تم نسخ رمز الغرفة")}
+function confetti(){for(let i=0;i<100;i++){let e=document.createElement("i");e.className="piece";e.style.left=Math.random()*100+"%";e.style.top="-20px";e.style.transform=`rotate(${Math.random()*360}deg)`;e.style.background=`hsl(${Math.random()*360},90%,60%)`;e.style.animationDelay=Math.random()*1.5+"s";$("confetti").appendChild(e)}}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+</script>
+</body></html>
