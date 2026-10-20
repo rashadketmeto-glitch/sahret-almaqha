@@ -96,7 +96,7 @@ input,select,textarea{background:#111827;color:#fff;width:100%}button{background
 <script>
 const builtIn=[
 ["ما هي عاصمة فلسطين؟",["القدس","يافا","حيفا","غزة"],0],
-["أي مدينة تُعرف بمدينة الياسمين؟",["أريحا","أريحا القديمة","نابلس","غزة"],0],
+["أي مدينة سورية تُعرف بمدينة الياسمين؟",["دمشق","حلب","حمص","اللاذقية"],0],
 ["ما البحر الذي يحد فلسطين من الغرب؟",["البحر الأحمر","البحر المتوسط","بحر العرب","البحر الميت"],1],
 ["ما اسم العملة المتداولة في فلسطين؟",["الدينار الأردني والشيكل","اليورو","الدولار الكندي","الجنيه المصري فقط"],0],
 ["أي طبق فلسطيني شهير يُحضّر بالقمح واللحم؟",["المقلوبة","المسخن","الهريسة","المنسف"],1]
@@ -113,7 +113,7 @@ function hostGame(){
  peer.on("open",()=>{showLobby();$("judgeBox").classList.remove("hidden");toast("الغرفة جاهزة");});
  peer.on("connection",c=>{
    c.on("open",()=>{if(conns.size>=19){c.close();return} conns.set(c.peer,c);c.send({type:"welcome",hostId:peer.id,players,questions});broadcast();});
-   c.on("data",d=>handleHost(c,d)); c.on("close",()=>{conns.delete(c.peer);broadcast();});
+   c.on("data",d=>handleHost(c,d)); c.on("close",()=>{conns.delete(c.peer); if(c.playerName && players[c.playerName]) delete players[c.playerName]; broadcast();});
  });
  peer.on("error",e=>toast("تعذر إنشاء الغرفة: "+e.type));
 }
@@ -125,12 +125,23 @@ function joinGame(){
  peer.on("error",e=>toast("تعذر الدخول للغرفة"));
 }
 function showLobby(){$("home").classList.add("hidden");$("lobby").classList.remove("hidden");$("roomShow").textContent=roomId;renderPlayers()}
+function syncReadyButton(){
+ ready=!!players[me]?.ready;
+ $("readyBtn").textContent=ready?"إلغاء الجاهزية":"أنا جاهز ✓";
+}
 function renderPlayers(){
  $("count").textContent=Object.keys(players).length;$("readyCount").textContent=Object.values(players).filter(p=>p.ready).length;
  $("players").innerHTML=Object.values(players).map(p=>`<div class="player"><b>${esc(p.name)}</b><br><span class="${p.ready?'ready':'notready'}">${p.ready?'جاهز ✓':'غير جاهز'}</span><br><span>${p.score} نقطة</span></div>`).join("");
+ syncReadyButton();
  if(isHost)$("startBtn").disabled=Object.keys(players).length<2||!Object.values(players).every(p=>p.ready);
 }
-function toggleReady(){ready=!ready;$("readyBtn").textContent=ready?"إلغاء الجاهزية":"أنا جاهز ✓"; if(isHost){players[me].ready=ready;renderPlayers();broadcast()}else hostConn?.send({type:"ready",value:ready})}
+function toggleReady(){
+ if(!players[me])return toast("انتظر حتى يكتمل الاتصال بالغرفة");
+ const nextReady=!ready;
+ if(isHost){players[me].ready=nextReady;ready=nextReady;syncReadyButton();renderPlayers();broadcast()}
+ else if(hostConn&&hostConn.open){ready=nextReady;$("readyBtn").textContent=ready?"إلغاء الجاهزية":"أنا جاهز ✓";hostConn.send({type:"ready",value:ready})}
+ else toast("الاتصال بالحكم غير متصل؛ أعد الدخول إلى الغرفة");
+}
 function handleHost(c,d){
  if(d.type==="join"){
    if(Object.keys(players).length>=20)return;
@@ -141,8 +152,22 @@ function handleHost(c,d){
  else if(d.type==="chat"){broadcast({type:"chat",name:d.name,text:d.text})}
 }
 function handlePlayer(d){
- if(d.type==="welcome"){players=d.players;questions=d.questions;roomId=$("room").value.toUpperCase();renderPlayers()}
- if(d.type==="state"){players=d.players;questions=d.questions;renderPlayers();if(d.phase==="game")showQuestion(d.q,d.round)}
+ if(d.type==="welcome"){
+   players=d.players||{};questions=d.questions||questions;roomId=$("room").value.toUpperCase();
+   showLobby();renderPlayers();
+ }
+ if(d.type==="state"){
+   players=d.players||players;questions=d.questions||questions;
+   renderPlayers();
+   if(d.phase==="game"){
+     $("lobby").classList.add("hidden");$("winner").classList.add("hidden");$("game").classList.remove("hidden");
+     // Only reset the timer and answers when the host actually advances to a new question.
+     if(d.showQuestion)showQuestion(d.q,d.round);
+     else {$("myScore").textContent=players[me]?.score??0;renderRanking();}
+   }else{
+     $("game").classList.add("hidden");$("winner").classList.add("hidden");$("lobby").classList.remove("hidden");
+   }
+ }
  if(d.type==="chat")addChat(d.name,d.text);
  if(d.type==="winner")finish(d.players);
 }
@@ -153,7 +178,9 @@ function broadcast(msg){
 }
 function startGame(){
  if(!isHost)return;
- qIndex=0; document.querySelectorAll(".hidden").forEach(()=>{}); $("lobby").classList.add("hidden");$("game").classList.remove("hidden");showQuestion(qIndex,qIndex+1);broadcast();
+ if(Object.keys(players).length<2||!Object.values(players).every(p=>p.ready))return toast("يجب أن يكون لاعبان على الأقل جاهزين");
+ qIndex=0; $("lobby").classList.add("hidden");$("game").classList.remove("hidden");showQuestion(qIndex,qIndex+1);
+ broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1,showQuestion:true});
 }
 function showQuestion(i,round){
  qIndex=i; answered=false; time=20;$("roundNo").textContent=round;$("timer").textContent=time;
@@ -170,13 +197,13 @@ function scoreAnswer(name,i){
  const q=questions[qIndex%questions.length]; if(!players[name])return;
  if(i===q[2]){players[name].score+=2; if(name===me)$("myScore").textContent=players[name].score;toast("إجابة صحيحة! +2 🎉")}
  else if(name===me)toast("إجابة غير صحيحة");
- broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1});
+ broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1,showQuestion:false});
  if(isHost)setTimeout(nextQuestion,1200);
 }
 function nextQuestion(){
  clearInterval(timerInt);qIndex++;
  if(qIndex>=Math.min(questions.length,10)){finish(players);broadcast({type:"winner",players});return}
- showQuestion(qIndex,qIndex+1);broadcast();
+ showQuestion(qIndex,qIndex+1);broadcast({type:"state",players,questions,phase:"game",q:qIndex,round:qIndex+1,showQuestion:true});
 }
 function addQuestion(){
  if(!isHost)return;let q=$("customQ").value.trim(),a=[$("a1").value.trim(),$("a2").value.trim(),$("a3").value.trim(),$("a4").value.trim()];
